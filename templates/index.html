@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Repo File Picker</title>
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/normalize.css@8/normalize.css">
+<style>
+body   { font-family: sans-serif; padding: 1rem; line-height: 1.4; }
+ul     { list-style: none; padding-left: 1em; margin: .25em 0; }
+li.dir > label { font-weight: 600; cursor: pointer; }
+input  { margin-right: .35em; }
+button { padding: .55em 1em; font-size: 1rem; margin-right: .4em; }
+
+@media (max-width:480px){
+    body{ padding:.5rem; font-size:95%; }
+    button{ width:100%; margin:.3em 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── top‑bar buttons ─────────────────────────────────────────────── -->
+<button id="copyBtn"   type="button" disabled>Copy to clipboard</button>
+<button id="updateBtn" type="button">Update from {{ branch }}</button>
+
+<!-- ── file‑tree form (populated by JS) ─────────────────────────────── -->
+<form id="treeForm"></form>
+
+<script>
+    const TREE_DATA = {{ tree|tojson }};
+    const GIT_BRANCH = "{{ branch }}";
+</script>
+<script src="/static/main.js"></script>
+</body>
+</html>

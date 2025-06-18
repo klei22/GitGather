@@ -18,21 +18,41 @@ button { padding: .55em 1em; font-size: 1rem; margin-right: .4em; }
     body{ padding:.5rem; font-size:95%; }
     button{ width:100%; margin:.3em 0; }
 }
+
+#quickPanel h3 { margin: .6em 0 .2em; font-size: 1rem; }
+#quickPanel button { margin: .15em .15em .15em 0; font-size: .8rem; }
+.grp { display:flex; align-items:center; gap:.4em; margin:.2em 0; }
+@media(max-width:480px){
+  #quickPanel{ margin-top:.8em; }
+}
+
 </style>
+
 </head>
 <body>
 
-<!-- ── top‑bar buttons ─────────────────────────────────────────────── -->
+<!-- ── action bar ─────────────────────────────────────────────── -->
 <button id="copyBtn"   type="button" disabled>Copy to clipboard</button>
 <button id="updateBtn" type="button">Update from {{ branch }}</button>
+<button id="saveGroupBtn" type="button" disabled>Save group</button>
 
-<!-- ── file‑tree form (populated by JS) ─────────────────────────────── -->
+<!-- ── quick‑select panel ─────────────────────────────────────── -->
+<div id="quickPanel">
+  <h3>Most‑used files</h3>
+  <div id="freqList"></div>
+
+  <h3>Saved groups</h3>
+  <div id="groupList"></div>
+</div>
+
+<!-- ── file tree ──────────────────────────────────────────────── -->
 <form id="treeForm"></form>
 
 <script>
-    const TREE_DATA = {{ tree|tojson }};
-    const GIT_BRANCH = "{{ branch }}";
+  const TREE_DATA = {{ tree|tojson }};
+  const GIT_BRANCH = "{{ branch }}";
 </script>
 <script src="/static/main.js"></script>
 </body>
+
 </html>

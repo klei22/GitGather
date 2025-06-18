@@ -1,135 +1,193 @@
 /* =======================================================================
-     File: static/main.js    (drop‑in replacement)
+   static/main.js   —  v3 with Quick‑Select Helpers
    ===================================================================== */
 
+/* ---------- tiny helpers --------------------------------------------- */
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+/* ---------- build file tree  ----------------------------------------- */
 function renderNode(node) {
     const li = document.createElement("li");
     li.className = node.type;
-
-    // Checkbox + label
     const label = document.createElement("label");
     const cb    = document.createElement("input");
     cb.type = "checkbox";
     cb.dataset.path = node.path;
-    label.appendChild(cb);
-    label.append(" ", node.name);
+    label.append(cb, " ", node.name);
     li.appendChild(label);
 
-    // Folder‑specific logic
     if (node.type === "dir") {
         const ul = document.createElement("ul");
-        ul.hidden = true;                        // collapsed by default
+        ul.hidden = true;
         node.children.forEach(ch => ul.appendChild(renderNode(ch)));
         li.appendChild(ul);
 
-        // Toggle open/close when tapping the folder name
-        label.addEventListener("click", e => {
-            if (e.target.tagName !== "INPUT") ul.hidden = !ul.hidden;
-        });
-        // Cascade checkbox state
+        label.addEventListener("click", e =>
+            e.target.tagName !== "INPUT" && (ul.hidden = !ul.hidden));
+
         cb.addEventListener("change", e => {
-            ul.querySelectorAll("input[type='checkbox']")
-              .forEach(child => { child.checked = e.target.checked; });
-            updateCopyButton();
+            ul.querySelectorAll("input[type=checkbox]")
+              .forEach(c => { c.checked = e.target.checked; });
+            refreshButtons();
         });
     } else {
-        cb.addEventListener("change", updateCopyButton);
+        cb.addEventListener("change", refreshButtons);
     }
     return li;
 }
 
 function buildTree() {
-    const rootUL = document.createElement("ul");
-    TREE_DATA.children.forEach(ch => rootUL.appendChild(renderNode(ch)));
-    document.getElementById("treeForm").appendChild(rootUL);
+    const root = document.createElement("ul");
+    TREE_DATA.children.forEach(ch => root.appendChild(renderNode(ch)));
+    $("#treeForm").appendChild(root);
 }
 
-/* ---------- Enable/disable “Copy” button -------------------------------- */
-function updateCopyButton() {
-    const any = Array.from(document.querySelectorAll("input[data-path]"))
-                      .some(cb => cb.checked);
-    document.getElementById("copyBtn").disabled = !any;
+/* ---------- localStorage helpers ------------------------------------ */
+function lsGet(key, def) { return JSON.parse(localStorage.getItem(key) || def); }
+function lsSet(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+
+/* ---------- Frequent files ------------------------------------------ */
+function bumpUsage(paths) {
+    const usage = lsGet("fileUsageCounts", "{}");
+    paths.forEach(p => usage[p] = (usage[p] || 0) + 1);
+    lsSet("fileUsageCounts", usage);
 }
 
-/* ---------- Hardened clipboard logic ------------------------------------ */
+function renderFreqList() {
+    const usage = lsGet("fileUsageCounts", "{}");
+    const top10 = Object.entries(usage)
+                     .sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
+    const box = $("#freqList");
+    box.innerHTML = "";
+    top10.forEach(path => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = path.split("/").pop();   // show filename only
+        btn.title = path;
+        btn.addEventListener("click", ()=> togglePath(path));
+        box.appendChild(btn);
+    });
+}
+
+/* ---------- Saved groups -------------------------------------------- */
+function renderGroupList() {
+    const groups = lsGet("savedGroups", "[]");
+    const box = $("#groupList");
+    box.innerHTML = "";
+    groups.forEach((g,i) => {
+        const div = document.createElement("div");
+        div.className = "grp";
+
+        const title = document.createElement("span");
+        title.textContent = g.name;
+        div.appendChild(title);
+
+        const selBtn = document.createElement("button");
+        selBtn.textContent = "Select";
+        selBtn.type = "button";
+        selBtn.addEventListener("click", ()=> selectGroup(g.paths));
+        div.appendChild(selBtn);
+
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "🗑︎";
+        delBtn.type = "button";
+        delBtn.addEventListener("click", ()=> {
+            groups.splice(i,1);
+            lsSet("savedGroups", groups);
+            renderGroupList();
+        });
+        div.appendChild(delBtn);
+        box.appendChild(div);
+    });
+}
+
+function saveCurrentGroup() {
+    const paths = $$("#treeForm input[data-path]:checked").map(cb=>cb.dataset.path);
+    const name  = prompt("Group name?");
+    if (!name) return;
+    const groups = lsGet("savedGroups", "[]");
+    groups.push({name, paths});
+    lsSet("savedGroups", groups);
+    renderGroupList();
+}
+
+/* ---------- selection helpers --------------------------------------- */
+function togglePath(path) {
+    const cb = $(`#treeForm input[data-path="${CSS.escape(path)}"]`);
+    if (cb) { cb.checked = !cb.checked; refreshButtons(); }
+}
+function selectGroup(paths) {
+    // clear all first
+    $$("#treeForm input[data-path]").forEach(cb=> cb.checked=false);
+    paths.forEach(togglePath);
+    refreshButtons();
+}
+
+/* ---------- main action buttons ------------------------------------- */
+function refreshButtons() {
+    const any = $$("#treeForm input[data-path]:checked").length>0;
+    $("#copyBtn").disabled       = !any;
+    $("#saveGroupBtn").disabled  = !any;
+}
+
+/* ----- Clipboard copy (synchronous + fallback, as proven) ------------- */
 function copyToClipboardHandler() {
-    /* Gather selected paths */
-    const paths = Array.from(
-        document.querySelectorAll("input[data-path]:checked")
-    ).map(cb => cb.dataset.path);
-    if (!paths.length) return;                // nothing selected
+    const paths = $$("#treeForm input[data-path]:checked").map(cb=>cb.dataset.path);
+    if (!paths.length) return;
+    /* sync XHR keeps us in gesture */
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST","/read-files",false);
+    xhr.setRequestHeader("Content-Type","application/json");
+    xhr.send(JSON.stringify({paths}));
 
-    /* SYNC request to keep us inside the click gesture */
-    let text;
-    try {
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", "/read-files", false);      // 3rd arg = false → synchronous
-        xhr.setRequestHeader("Content-Type", "application/json");
-        xhr.send(JSON.stringify({paths}));
-        if (xhr.status >= 200 && xhr.status < 300) {
-            text = JSON.parse(xhr.responseText).merged;
+    if (xhr.status<200 || xhr.status>=300) { alert("Server error"); return;}
+    const text = JSON.parse(xhr.responseText).merged;
+
+    const done = ok => {
+        if (ok) {
+            alert(`Copied ${paths.length} file(s)`);
+            bumpUsage(paths);
+            renderFreqList();
         } else {
-            alert("Failed to fetch file contents ("+xhr.status+")");
-            return;
+            alert("Copy blocked by browser.");
         }
-    } catch (e) {
-        alert("XHR error: " + e.message);
-        return;
-    }
+    };
 
-    /* Try modern API first */
     if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(text).then(() => {
-            alert(`Copied ${paths.length} file(s) to clipboard.`);
-        }).catch(_ => fallbackCopy(text, paths.length));
+        navigator.clipboard.writeText(text).then(()=>done(true))
+                 .catch(()=> fallbackCopy(text,done));
     } else {
-        fallbackCopy(text, paths.length);
+        fallbackCopy(text,done);
     }
 }
 
-function fallbackCopy(text, count) {
-    /* Visible‑but‑transparent textarea inside viewport (iOS requirement) */
+function fallbackCopy(text, cb) {
     const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "absolute";
-    ta.style.top  = "0";
-    ta.style.left = "0";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-
-    ta.focus();
-    ta.select();
-    ta.setSelectionRange(0, ta.value.length);   // Firefox Mobile quirk
-
-    const ok = document.execCommand("copy");
+    Object.assign(ta.style,{position:"absolute",top:0,left:0,opacity:0});
+    ta.value=text; document.body.appendChild(ta);
+    ta.focus(); ta.select(); ta.setSelectionRange(0,ta.value.length);
+    const ok=document.execCommand("copy");
     document.body.removeChild(ta);
-
-    alert(ok
-        ? `Copied ${count} file(s) to clipboard (fallback).`
-        : "Sorry, your browser blocked the copy action.");
+    cb(ok);
 }
 
-/* ---------- Git update (unchanged) ------------------------------------- */
+/* ---------- Git update (unchanged) ----------------------------------- */
 async function updateRepo() {
-    const btn = document.getElementById("updateBtn");
-    btn.disabled = true;
-    const txt = btn.textContent;
-    btn.textContent = "Updating…";
+    const b=$("#updateBtn"); b.disabled=true; const t=b.textContent; b.textContent="Updating…";
     try {
-        const res = await fetch("/update-repo", {method:"POST"});
-        const data = await res.json();
-        alert(data.ok ? "Repo updated:\n\n"+data.log
-                      : "Update failed:\n\n"+data.log);
-        if (data.ok) location.reload();
-    } catch(e) {
-        alert("Request failed: " + e);
-    } finally {
-        btn.textContent = txt;
-        btn.disabled = false;
-    }
+        const r=await fetch("/update-repo",{method:"POST"}); const j=await r.json();
+        alert(j.ok?"Repo updated:\n\n"+j.log:"Update failed:\n\n"+j.log);
+        if(j.ok) location.reload();
+    } catch(e){ alert(e);}
+    finally{ b.textContent=t; b.disabled=false;}
 }
 
-/* ---------- Init ------------------------------------------------------- */
+/* ---------- init ----------------------------------------------------- */
 buildTree();
-document.getElementById("copyBtn").addEventListener("click", copyToClipboardHandler);
-document.getElementById("updateBtn").addEventListener("click", updateRepo);
+renderFreqList();
+renderGroupList();
+$("#copyBtn").addEventListener("click", copyToClipboardHandler);
+$("#updateBtn").addEventListener("click", updateRepo);
+$("#saveGroupBtn").addEventListener("click", saveCurrentGroup);
+

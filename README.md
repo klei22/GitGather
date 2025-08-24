@@ -9,7 +9,7 @@ Browse a Git repository in your browser (files-first tree), pick files, copy the
 - **Files‑first tree view** – folders come after files for quicker targeting.
 - **Selection chips & clipboard merge** – select multiple files and copy a single merged buffer, with headings per file.
 - **Saved groups & most used** – save common selections and reapply them; frequently used files surface automatically.
-- **One‑click Git update** – fetch/prune all remotes and fast‑forward pull the configured branch.
+- **One‑click Git update** – fetch all remotes, fast‑forward pull the chosen branch, and optionally run a post‑update script.
 - **Light/Dark theme** – toggle persists across sessions.
 - **Simple configuration** – auto-detect repo root or set it explicitly in `config.ini`.
 
@@ -51,6 +51,9 @@ path = /path/to/your/repo
 
 # Branch to fast-forward pull. Defaults to "master" if omitted.
 branch = main
+
+# Optional bash script to run after each successful update.
+post_update = /path/to/script.sh
 ```
 
 If `path` is omitted, Git Gather will attempt:
@@ -105,11 +108,12 @@ Open your browser to **[http://localhost:9001](http://localhost:9001)**.
 
 5. **Update the repo**
 
-   * Click **Update (branch)** to run:
+   * Choose a branch in the input field and click **Update** to run:
 
      ```bash
-     git fetch --all --prune
+     git fetch --all
      git pull --ff-only origin <branch>
+     bash <post-update-script>  # if configured
      ```
    * Output is shown in an alert; on success the page reloads.
 
@@ -210,6 +214,9 @@ path = /abs/or/tilde/expanded/path
 # The branch Git Gather will fast-forward pull from origin.
 # Defaults to "master" if missing or empty.
 branch = main
+
+# Optional bash script executed after a successful pull.
+post_update = /path/to/script.sh
 ```
 
 If `path` is set to a non-repo, the server returns an error. If you run Git Gather **inside** a Git repo and omit `path`, it will use that repo automatically.

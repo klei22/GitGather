@@ -23,8 +23,9 @@ def load_config():
         return {
             "path": sec.get("path", "").strip() or None,
             "branch": sec.get("branch", "master").strip() or "master",
+            "post_update": sec.get("post_update", "").strip() or None,
         }
-    return {"path": None, "branch": "master"}
+    return {"path": None, "branch": "master", "post_update": None}
 
 CONF = load_config()
 
@@ -58,10 +59,10 @@ def build_tree(base: Path, sub: Path = Path(".")) -> dict:
         }
     return {"name": full.name, "path": str(sub), "type": "file", "children": []}
 
-def update_repo(repo_root: Path) -> str:
+def update_repo(repo_root: Path, branch: str) -> str:
     cmds = [
-        ["git", "-C", str(repo_root), "fetch", "--all", "--prune"],
-        ["git", "-C", str(repo_root), "pull", "--ff-only", "origin", CONF["branch"]],
+        ["git", "-C", str(repo_root), "fetch", "--all"],
+        ["git", "-C", str(repo_root), "pull", "--ff-only", "origin", branch],
     ]
     out = []
     for cmd in cmds:
@@ -69,6 +70,17 @@ def update_repo(repo_root: Path) -> str:
         out.append(f"$ {' '.join(cmd)}\n{proc.stdout}{proc.stderr}")
         if proc.returncode != 0:
             raise RuntimeError(" ".join(cmd) + f" failed ({proc.returncode})")
+
+    script = CONF.get("post_update")
+    if script:
+        script_path = Path(script).expanduser()
+        if not script_path.is_absolute():
+            script_path = repo_root / script_path
+        proc = subprocess.run(["bash", str(script_path)], capture_output=True, text=True, cwd=repo_root)
+        out.append(f"$ bash {script_path}\n{proc.stdout}{proc.stderr}")
+        if proc.returncode != 0:
+            raise RuntimeError(f"{script_path} failed ({proc.returncode})")
+
     return "\n".join(out)
 
 # ── flask app ───────────────────────────────────────────────────────
@@ -102,8 +114,10 @@ def read_files():
 
 @app.route("/update-repo", methods=["POST"])
 def update_repo_route():
+    data = request.get_json(silent=True) or {}
+    branch = data.get("branch", CONF["branch"])
     try:
-        log = update_repo(get_repo_root())
+        log = update_repo(get_repo_root(), branch)
         return jsonify({"ok": True, "log": log})
     except RuntimeError as e:
         return jsonify({"ok": False, "log": str(e)}), 500

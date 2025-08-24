@@ -1,6 +1,6 @@
 # Git Gather
 
-> Browse a Git repository in your browser (files-first tree), pick files, copy their merged contents to your clipboard, save selection groups, and run a safe `git fetch --all && git pull --ff-only` update — all from a tiny Flask app.
+Browse a Git repository in your browser (files-first tree), pick files, copy their merged contents to your clipboard, save selection groups, and run a safe `git fetch --all && git pull --ff-only` update — all from a tiny Flask app.
 
 ---
 

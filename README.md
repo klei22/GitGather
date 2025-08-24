@@ -65,27 +65,27 @@ pull_remote = upstream
 push_remote = origin
 ```
 
-**Example:** Mirror from `reallm` to `klei` before pulling from `klei`:
+**Example:** Mirror from `upstream` to `origin` before pulling from `origin`:
 
 ```ini
 [repo]
 path = nanogpt
 branch = master
-remote = klei
+remote = origin
 
 [mirror]
 path = .
-pull_remote = reallm
-push_remote = klei
+pull_remote = upstream
+push_remote = origin
 ```
 
 Running **Update** now executes:
 
 ```bash
 git fetch --all
-git -C nanogpt pull reallm master:master
-git -C nanogpt push klei master:master
-git -C nanogpt pull --ff-only klei master
+git -C nanogpt pull upstream master:master
+git -C nanogpt push origin master:master
+git -C nanogpt pull --ff-only origin master
 ```
 
 If `path` is omitted, Git Gather will attempt:

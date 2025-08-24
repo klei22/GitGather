@@ -20,12 +20,21 @@ def load_config():
     if CFG_FILE.exists():
         cfg.read(CFG_FILE)
         sec = cfg["repo"]
-        return {
+        cfg_dict = {
             "path": sec.get("path", "").strip() or None,
             "branch": sec.get("branch", "master").strip() or "master",
-            "post_update": sec.get("post_update", "").strip() or None,
         }
-    return {"path": None, "branch": "master", "post_update": None}
+        if cfg.has_section("mirror"):
+            msec = cfg["mirror"]
+            cfg_dict["mirror"] = {
+                "path": msec.get("path", "").strip() or None,
+                "pull_remote": msec.get("pull_remote", "").strip() or None,
+                "push_remote": msec.get("push_remote", "").strip() or None,
+            }
+        else:
+            cfg_dict["mirror"] = None
+        return cfg_dict
+    return {"path": None, "branch": "master", "mirror": None}
 
 CONF = load_config()
 
@@ -88,15 +97,20 @@ def update_repo(repo_root: Path, branch: str) -> str:
         if proc.returncode != 0:
             raise RuntimeError(" ".join(cmd) + f" failed ({proc.returncode})")
 
-    script = CONF.get("post_update")
-    if script:
-        script_path = Path(script).expanduser()
-        if not script_path.is_absolute():
-            script_path = (CFG_FILE.parent / script_path).resolve()
-        proc = subprocess.run(["bash", str(script_path)], capture_output=True, text=True, cwd=repo_root)
-        out.append(f"$ bash {script_path}\n{proc.stdout}{proc.stderr}")
-        if proc.returncode != 0:
-            raise RuntimeError(f"{script_path} failed ({proc.returncode})")
+    mirror = CONF.get("mirror")
+    if mirror and mirror["path"] and mirror["pull_remote"] and mirror["push_remote"]:
+        mirror_path = Path(mirror["path"]).expanduser()
+        if not mirror_path.is_absolute():
+            mirror_path = (repo_root / mirror_path).resolve()
+        cmds = [
+            ["git", "-C", str(mirror_path), "pull", mirror["pull_remote"], f"{branch}:{branch}"],
+            ["git", "-C", str(mirror_path), "push", mirror["push_remote"], f"{branch}:{branch}"],
+        ]
+        for cmd in cmds:
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+            out.append(f"$ {' '.join(cmd)}\n{proc.stdout}{proc.stderr}")
+            if proc.returncode != 0:
+                raise RuntimeError(" ".join(cmd) + f" failed ({proc.returncode})")
 
     return "\n".join(out)
 

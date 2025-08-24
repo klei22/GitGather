@@ -9,7 +9,7 @@ Browse a Git repository in your browser (files-first tree), pick files, copy the
 - 📁 **Files‑first tree view** – folders come after files for quicker targeting.
 - 📋 **Selection chips & clipboard merge** – select multiple files and copy a single merged buffer, with headings per file.
 - 💾 **Saved groups & most used** – save common selections and reapply them; frequently used files surface automatically.
-- 🔄 **One‑click Git update** – fetch all remotes, pick the branch from a drop‑down, and optionally run a post‑update script.
+- 🔄 **One‑click Git update** – fetch all remotes, pick the branch from a drop‑down, and optionally mirror a nested repo between remotes.
 - 🌗 **Light/Dark theme** – toggle persists across sessions.
 - ⚙️ **Simple configuration** – auto-detect repo root or set it explicitly in `config.ini`.
 
@@ -54,20 +54,12 @@ path = /path/to/your/repo
 # Branch to fast-forward pull. Defaults to "master" if omitted.
 branch = main
 
-# Optional bash script to run after each successful update.
-# Relative paths resolve next to this config file.
-post_update = ./post_update.sh
-```
-
-Example `post_update.sh` that updates a nested repo:
-
-```bash
-#!/usr/bin/env bash
-set -e
-pushd nanogpt >/dev/null
-git fetch --all
-git pull --ff-only
-popd >/dev/null
+[mirror]
+# Optional nested repo to mirror between remotes after updating.
+# `path` is relative to the repo root above.
+path = nanogpt
+pull_remote = upstream
+push_remote = origin
 ```
 
 If `path` is omitted, Git Gather will attempt:
@@ -126,11 +118,12 @@ Open your browser to **[http://localhost:9001](http://localhost:9001)**.
 
    * Pick a branch from the drop‑down and click **Update** to run:
 
-     ```bash
-     git fetch --all
-     git pull --ff-only origin <branch>
-     bash <post-update-script>  # if configured
-     ```
+    ```bash
+    git fetch --all
+    git pull --ff-only origin <branch>
+    git pull <pull_remote> <branch>:<branch>   # if [mirror] configured
+    git push <push_remote> <branch>:<branch>   # if [mirror] configured
+    ```
    * Output is shown in an alert; on success the page reloads.
 
 6. **Theme**
@@ -231,9 +224,12 @@ path = /abs/or/tilde/expanded/path
 # Defaults to "master" if missing or empty.
 branch = main
 
-# Optional bash script executed after a successful pull.
-# Path is relative to this file; script runs with the repo root as cwd.
-post_update = ./post_update.sh
+# Optional nested repo to mirror between remotes after a pull.
+# `path` is relative to the repo root; omit this section to skip mirroring.
+[mirror]
+path = nanogpt
+pull_remote = upstream
+push_remote = origin
 ```
 
 If `path` is set to a non-repo, the server returns an error. If you run Git Gather **inside** a Git repo and omit `path`, it will use that repo automatically.

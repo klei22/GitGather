@@ -1,58 +1,87 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Repo File Picker</title>
+<title>Repo Picker</title>
+
 <link rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/normalize.css@8/normalize.css">
+
 <style>
-body   { font-family: sans-serif; padding: 1rem; line-height: 1.4; }
-ul     { list-style: none; padding-left: 1em; margin: .25em 0; }
-li.dir > label { font-weight: 600; cursor: pointer; }
-input  { margin-right: .35em; }
-button { padding: .55em 1em; font-size: 1rem; margin-right: .4em; }
+/* ---------- colour tokens ----------------------------------------- */
+:root[data-theme="light"] {
+  --bg      : #fdfdfd;
+  --fg      : #1a1a1a;
+  --accent  : #0066ff;
+  --accent-bg : #e5f0ff;
+  --border  : #c8c8c8;
+}
+:root[data-theme="dark"] {
+  --bg      : #1a1a1a;
+  --fg      : #fdfdfd;
+  --accent  : #66a6ff;
+  --accent-bg : #253454;
+  --border  : #333;
+}
+
+body { margin:0; font-family: system-ui, sans-serif;
+       background:var(--bg); color:var(--fg); }
+
+ul   { list-style:none; margin:0; padding-left:1em; }
+button, input[type=checkbox] { touch-action: manipulation; }
+
+header {
+  position:sticky; top:0; z-index:10; display:flex; flex-wrap:wrap;
+  gap:.45rem; padding:.55rem .75rem;
+  background:var(--bg); border-bottom:1px solid var(--border);
+}
+header > button { padding:.5em 1em; font-size:1rem; }
+
+#selBar { flex:1 1 100%; display:flex; flex-wrap:wrap; gap:.35rem; }
+
+.chip {
+  padding:.25em .65em; border:1px solid var(--accent); border-radius:999px;
+  background:var(--accent-bg); font-size:.8rem; cursor:pointer; user-select:none;
+}
+
+li.row { display:flex; align-items:center; gap:.4em; }
+li.row:hover { background:rgba(255,255,255,.03); }
+li input[type=checkbox] { flex:none; }
+.toggle {
+  appearance:none; border:none; background:none; cursor:pointer;
+  font-size:.9rem; width:1.3em; color:var(--accent);
+}
+.toggle:focus { outline:2px solid var(--accent); }
+.toggle::-moz-focus-inner { border:0; }   /* Firefox */
+.name { cursor:pointer; }
 
 @media (max-width:480px){
-    body{ padding:.5rem; font-size:95%; }
-    button{ width:100%; margin:.3em 0; }
+  header > button { flex:1 1 calc(50% - .45rem); }
 }
-
-#quickPanel h3 { margin: .6em 0 .2em; font-size: 1rem; }
-#quickPanel button { margin: .15em .15em .15em 0; font-size: .8rem; }
-.grp { display:flex; align-items:center; gap:.4em; margin:.2em 0; }
-@media(max-width:480px){
-  #quickPanel{ margin-top:.8em; }
-}
-
 </style>
-
 </head>
 <body>
 
-<!-- ── action bar ─────────────────────────────────────────────── -->
-<button id="copyBtn"   type="button" disabled>Copy to clipboard</button>
-<button id="updateBtn" type="button">Update from {{ branch }}</button>
-<button id="saveGroupBtn" type="button" disabled>Save group</button>
+<header>
+  <button id="copyBtn" disabled>Copy</button>
+  <button id="saveGroupBtn" disabled>Save&nbsp;group</button>
+  <button id="updateBtn">Update&nbsp;({{ branch }})</button>
+  <button id="themeBtn">Light / Dark</button>
 
-<!-- ── quick‑select panel ─────────────────────────────────────── -->
-<div id="quickPanel">
-  <h3>Most‑used files</h3>
-  <div id="freqList"></div>
+  <div id="selBar"></div>
+</header>
 
-  <h3>Saved groups</h3>
-  <div id="groupList"></div>
+<div id="quickPanel" style="padding:.6rem;">
+  <h3>Most used</h3><div id="freqList"></div>
+  <h3>Saved groups</h3><div id="groupList"></div>
 </div>
 
-<!-- ── file tree ──────────────────────────────────────────────── -->
-<form id="treeForm"></form>
+<form id="treeForm" style="padding:0 1rem 2rem;"></form>
 
-<script>
-  const TREE_DATA = {{ tree|tojson }};
-  const GIT_BRANCH = "{{ branch }}";
-</script>
+<script>const TREE_DATA={{ tree|tojson }};</script>
 <script src="/static/main.js"></script>
 </body>
-
 </html>
+

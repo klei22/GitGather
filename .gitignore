@@ -1,2 +1,3 @@
-nanogpt/
+# Example nested repo cloned alongside Git Gather
+example-repo/
 venv/

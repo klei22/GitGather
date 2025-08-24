@@ -164,9 +164,14 @@ function fallback(text,cb){
 
 /* ---------- Git update (unchanged) --------------------------------- */
 async function updateRepo(){
+  const branch=$("#branchSelect").value;
   const b=$("#updateBtn"); b.disabled=true; const t=b.textContent; b.textContent="Updating…";
   try{
-    const r=await fetch("/update-repo",{method:"POST"});
+    const r=await fetch("/update-repo",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({branch})
+    });
     const j=await r.json();
     alert(j.ok?"Repo updated:\n\n"+j.log:"Update failed:\n\n"+j.log);
     if(j.ok)location.reload();

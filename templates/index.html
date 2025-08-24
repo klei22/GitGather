@@ -67,7 +67,12 @@ li input[type=checkbox] { flex:none; }
 <header>
   <button id="copyBtn" disabled>Copy</button>
   <button id="saveGroupBtn" disabled>Save&nbsp;group</button>
-  <button id="updateBtn">Update&nbsp;({{ branch }})</button>
+  <select id="branchSelect" style="max-width:8em;">
+    {% for b in branches %}
+    <option value="{{ b }}"{% if b == branch %} selected{% endif %}>{{ b }}</option>
+    {% endfor %}
+  </select>
+  <button id="updateBtn">Update</button>
   <button id="themeBtn">Light / Dark</button>
 
   <div id="selBar"></div>

@@ -20,11 +20,22 @@ def load_config():
     if CFG_FILE.exists():
         cfg.read(CFG_FILE)
         sec = cfg["repo"]
-        return {
+        cfg_dict = {
             "path": sec.get("path", "").strip() or None,
             "branch": sec.get("branch", "master").strip() or "master",
+            "remote": sec.get("remote", "origin").strip() or "origin",
         }
-    return {"path": None, "branch": "master"}
+        if cfg.has_section("mirror"):
+            msec = cfg["mirror"]
+            cfg_dict["mirror"] = {
+                "path": msec.get("path", "").strip() or None,
+                "pull_remote": msec.get("pull_remote", "").strip() or None,
+                "push_remote": msec.get("push_remote", "").strip() or None,
+            }
+        else:
+            cfg_dict["mirror"] = None
+        return cfg_dict
+    return {"path": None, "branch": "master", "remote": "origin", "mirror": None}
 
 CONF = load_config()
 
@@ -58,17 +69,47 @@ def build_tree(base: Path, sub: Path = Path(".")) -> dict:
         }
     return {"name": full.name, "path": str(sub), "type": "file", "children": []}
 
-def update_repo(repo_root: Path) -> str:
-    cmds = [
-        ["git", "-C", str(repo_root), "fetch", "--all", "--prune"],
-        ["git", "-C", str(repo_root), "pull", "--ff-only", "origin", CONF["branch"]],
-    ]
+def list_branches(repo_root: Path) -> list:
+    """Return sorted list of branches for the configured remote."""
+    remote = CONF.get("remote", "origin")
+    try:
+        out = subprocess.check_output(
+            ["git", "-C", str(repo_root), "branch", "-r", "--format", "%(refname:short)"],
+            text=True,
+        )
+    except subprocess.CalledProcessError:
+        return [CONF["branch"]]
+    names = {
+        line.split("/", 1)[1]
+        for line in out.splitlines()
+        if line.strip().startswith(f"{remote}/") and not line.endswith("HEAD")
+    }
+    names.add(CONF["branch"])
+    return sorted(names)
+
+def update_repo(repo_root: Path, branch: str) -> str:
+    remote = CONF.get("remote", "origin")
+    cmds = [["git", "-C", str(repo_root), "fetch", "--all"]]
+
+    mirror = CONF.get("mirror")
+    if mirror and mirror["path"] and mirror["pull_remote"] and mirror["push_remote"]:
+        mirror_path = Path(mirror["path"]).expanduser()
+        if not mirror_path.is_absolute():
+            mirror_path = (repo_root / mirror_path).resolve()
+        cmds.extend([
+            ["git", "-C", str(mirror_path), "pull", mirror["pull_remote"], f"{branch}:{branch}"],
+            ["git", "-C", str(mirror_path), "push", mirror["push_remote"], f"{branch}:{branch}"],
+        ])
+
+    cmds.append(["git", "-C", str(repo_root), "pull", "--ff-only", remote, branch])
+
     out = []
     for cmd in cmds:
         proc = subprocess.run(cmd, capture_output=True, text=True)
         out.append(f"$ {' '.join(cmd)}\n{proc.stdout}{proc.stderr}")
         if proc.returncode != 0:
             raise RuntimeError(" ".join(cmd) + f" failed ({proc.returncode})")
+
     return "\n".join(out)
 
 # ── flask app ───────────────────────────────────────────────────────
@@ -80,7 +121,8 @@ def index():
     return render_template(
         "index.html",
         tree=build_tree(root),
-        branch=CONF["branch"]
+        branch=CONF["branch"],
+        branches=list_branches(root)
     )
 
 @app.route("/read-files", methods=["POST"])
@@ -102,8 +144,10 @@ def read_files():
 
 @app.route("/update-repo", methods=["POST"])
 def update_repo_route():
+    data = request.get_json(silent=True) or {}
+    branch = data.get("branch", CONF["branch"])
     try:
-        log = update_repo(get_repo_root())
+        log = update_repo(get_repo_root(), branch)
         return jsonify({"ok": True, "log": log})
     except RuntimeError as e:
         return jsonify({"ok": False, "log": str(e)}), 500

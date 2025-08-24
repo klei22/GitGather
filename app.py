@@ -59,6 +59,23 @@ def build_tree(base: Path, sub: Path = Path(".")) -> dict:
         }
     return {"name": full.name, "path": str(sub), "type": "file", "children": []}
 
+def list_branches(repo_root: Path) -> list:
+    """Return sorted list of remote branches (origin)."""
+    try:
+        out = subprocess.check_output(
+            ["git", "-C", str(repo_root), "branch", "-r", "--format", "%(refname:short)"],
+            text=True,
+        )
+    except subprocess.CalledProcessError:
+        return [CONF["branch"]]
+    names = {
+        line.split("/", 1)[1]
+        for line in out.splitlines()
+        if line.strip().startswith("origin/") and not line.endswith("HEAD")
+    }
+    names.add(CONF["branch"])
+    return sorted(names)
+
 def update_repo(repo_root: Path, branch: str) -> str:
     cmds = [
         ["git", "-C", str(repo_root), "fetch", "--all"],
@@ -92,7 +109,8 @@ def index():
     return render_template(
         "index.html",
         tree=build_tree(root),
-        branch=CONF["branch"]
+        branch=CONF["branch"],
+        branches=list_branches(root)
     )
 
 @app.route("/read-files", methods=["POST"])

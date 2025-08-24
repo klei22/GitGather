@@ -6,12 +6,14 @@ Browse a Git repository in your browser (files-first tree), pick files, copy the
 
 ## Features
 
-- **Files‑first tree view** – folders come after files for quicker targeting.
-- **Selection chips & clipboard merge** – select multiple files and copy a single merged buffer, with headings per file.
-- **Saved groups & most used** – save common selections and reapply them; frequently used files surface automatically.
-- **One‑click Git update** – fetch all remotes, fast‑forward pull the chosen branch, and optionally run a post‑update script.
-- **Light/Dark theme** – toggle persists across sessions.
-- **Simple configuration** – auto-detect repo root or set it explicitly in `config.ini`.
+- 📁 **Files‑first tree view** – folders come after files for quicker targeting.
+- 📋 **Selection chips & clipboard merge** – select multiple files and copy a single merged buffer, with headings per file.
+- 💾 **Saved groups & most used** – save common selections and reapply them; frequently used files surface automatically.
+- 🔄 **One‑click Git update** – fetch all remotes, pick the branch from a drop‑down, and optionally run a post‑update script.
+- 🌗 **Light/Dark theme** – toggle persists across sessions.
+- ⚙️ **Simple configuration** – auto-detect repo root or set it explicitly in `config.ini`.
+
+![Main interface screenshot placeholder](docs/screenshot-ui.png)
 
 ---
 
@@ -108,7 +110,9 @@ Open your browser to **[http://localhost:9001](http://localhost:9001)**.
 
 5. **Update the repo**
 
-   * Choose a branch in the input field and click **Update** to run:
+   ![Branch selector screenshot placeholder](docs/branch-dropdown.png)
+
+   * Pick a branch from the drop‑down and click **Update** to run:
 
      ```bash
      git fetch --all

@@ -164,7 +164,7 @@ function fallback(text,cb){
 
 /* ---------- Git update (unchanged) --------------------------------- */
 async function updateRepo(){
-  const branch=$("#branchInput").value.trim();
+  const branch=$("#branchSelect").value;
   const b=$("#updateBtn"); b.disabled=true; const t=b.textContent; b.textContent="Updating…";
   try{
     const r=await fetch("/update-repo",{

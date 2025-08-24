@@ -55,7 +55,19 @@ path = /path/to/your/repo
 branch = main
 
 # Optional bash script to run after each successful update.
-post_update = /path/to/script.sh
+# Relative paths resolve next to this config file.
+post_update = ./post_update.sh
+```
+
+Example `post_update.sh` that updates a nested repo:
+
+```bash
+#!/usr/bin/env bash
+set -e
+pushd nanogpt >/dev/null
+git fetch --all
+git pull --ff-only
+popd >/dev/null
 ```
 
 If `path` is omitted, Git Gather will attempt:
@@ -220,7 +232,8 @@ path = /abs/or/tilde/expanded/path
 branch = main
 
 # Optional bash script executed after a successful pull.
-post_update = /path/to/script.sh
+# Path is relative to this file; script runs with the repo root as cwd.
+post_update = ./post_update.sh
 ```
 
 If `path` is set to a non-repo, the server returns an error. If you run Git Gather **inside** a Git repo and omit `path`, it will use that repo automatically.

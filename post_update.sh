@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
-# Example post-update script
+# Example post-update script that also updates a nested repo
+set -e
 
-echo "Running post-update script"
+pushd nanogpt >/dev/null
+  git fetch --all
+  git pull --ff-only
+popd >/dev/null
+

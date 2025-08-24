@@ -92,7 +92,7 @@ def update_repo(repo_root: Path, branch: str) -> str:
     if script:
         script_path = Path(script).expanduser()
         if not script_path.is_absolute():
-            script_path = repo_root / script_path
+            script_path = (CFG_FILE.parent / script_path).resolve()
         proc = subprocess.run(["bash", str(script_path)], capture_output=True, text=True, cwd=repo_root)
         out.append(f"$ bash {script_path}\n{proc.stdout}{proc.stderr}")
         if proc.returncode != 0:

@@ -23,6 +23,7 @@ def load_config():
         cfg_dict = {
             "path": sec.get("path", "").strip() or None,
             "branch": sec.get("branch", "master").strip() or "master",
+            "remote": sec.get("remote", "origin").strip() or "origin",
         }
         if cfg.has_section("mirror"):
             msec = cfg["mirror"]
@@ -34,7 +35,7 @@ def load_config():
         else:
             cfg_dict["mirror"] = None
         return cfg_dict
-    return {"path": None, "branch": "master", "mirror": None}
+    return {"path": None, "branch": "master", "remote": "origin", "mirror": None}
 
 CONF = load_config()
 
@@ -69,7 +70,8 @@ def build_tree(base: Path, sub: Path = Path(".")) -> dict:
     return {"name": full.name, "path": str(sub), "type": "file", "children": []}
 
 def list_branches(repo_root: Path) -> list:
-    """Return sorted list of remote branches (origin)."""
+    """Return sorted list of branches for the configured remote."""
+    remote = CONF.get("remote", "origin")
     try:
         out = subprocess.check_output(
             ["git", "-C", str(repo_root), "branch", "-r", "--format", "%(refname:short)"],
@@ -80,37 +82,33 @@ def list_branches(repo_root: Path) -> list:
     names = {
         line.split("/", 1)[1]
         for line in out.splitlines()
-        if line.strip().startswith("origin/") and not line.endswith("HEAD")
+        if line.strip().startswith(f"{remote}/") and not line.endswith("HEAD")
     }
     names.add(CONF["branch"])
     return sorted(names)
 
 def update_repo(repo_root: Path, branch: str) -> str:
-    cmds = [
-        ["git", "-C", str(repo_root), "fetch", "--all"],
-        ["git", "-C", str(repo_root), "pull", "--ff-only", "origin", branch],
-    ]
-    out = []
-    for cmd in cmds:
-        proc = subprocess.run(cmd, capture_output=True, text=True)
-        out.append(f"$ {' '.join(cmd)}\n{proc.stdout}{proc.stderr}")
-        if proc.returncode != 0:
-            raise RuntimeError(" ".join(cmd) + f" failed ({proc.returncode})")
+    remote = CONF.get("remote", "origin")
+    cmds = [["git", "-C", str(repo_root), "fetch", "--all"]]
 
     mirror = CONF.get("mirror")
     if mirror and mirror["path"] and mirror["pull_remote"] and mirror["push_remote"]:
         mirror_path = Path(mirror["path"]).expanduser()
         if not mirror_path.is_absolute():
             mirror_path = (repo_root / mirror_path).resolve()
-        cmds = [
+        cmds.extend([
             ["git", "-C", str(mirror_path), "pull", mirror["pull_remote"], f"{branch}:{branch}"],
             ["git", "-C", str(mirror_path), "push", mirror["push_remote"], f"{branch}:{branch}"],
-        ]
-        for cmd in cmds:
-            proc = subprocess.run(cmd, capture_output=True, text=True)
-            out.append(f"$ {' '.join(cmd)}\n{proc.stdout}{proc.stderr}")
-            if proc.returncode != 0:
-                raise RuntimeError(" ".join(cmd) + f" failed ({proc.returncode})")
+        ])
+
+    cmds.append(["git", "-C", str(repo_root), "pull", "--ff-only", remote, branch])
+
+    out = []
+    for cmd in cmds:
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        out.append(f"$ {' '.join(cmd)}\n{proc.stdout}{proc.stderr}")
+        if proc.returncode != 0:
+            raise RuntimeError(" ".join(cmd) + f" failed ({proc.returncode})")
 
     return "\n".join(out)
 

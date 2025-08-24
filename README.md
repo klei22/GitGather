@@ -54,12 +54,38 @@ path = /path/to/your/repo
 # Branch to fast-forward pull. Defaults to "master" if omitted.
 branch = main
 
+# Remote to pull from when updating. Defaults to "origin".
+remote = origin
+
 [mirror]
 # Optional nested repo to mirror between remotes after updating.
 # `path` is relative to the repo root above.
 path = nanogpt
 pull_remote = upstream
 push_remote = origin
+```
+
+**Example:** Mirror from `reallm` to `klei` before pulling from `klei`:
+
+```ini
+[repo]
+path = nanogpt
+branch = master
+remote = klei
+
+[mirror]
+path = .
+pull_remote = reallm
+push_remote = klei
+```
+
+Running **Update** now executes:
+
+```bash
+git fetch --all
+git -C nanogpt pull reallm master:master
+git -C nanogpt push klei master:master
+git -C nanogpt pull --ff-only klei master
 ```
 
 If `path` is omitted, Git Gather will attempt:
@@ -118,11 +144,11 @@ Open your browser to **[http://localhost:9001](http://localhost:9001)**.
 
    * Pick a branch from the drop‑down and click **Update** to run:
 
-    ```bash
+   ```bash
     git fetch --all
-    git pull --ff-only origin <branch>
     git pull <pull_remote> <branch>:<branch>   # if [mirror] configured
     git push <push_remote> <branch>:<branch>   # if [mirror] configured
+    git pull --ff-only <remote> <branch>
     ```
    * Output is shown in an alert; on success the page reloads.
 
@@ -152,7 +178,7 @@ Open your browser to **[http://localhost:9001](http://localhost:9001)**.
     * Returns `{"merged": "<text>"}`.
   * `update_repo_route` (POST `/update-repo`)
 
-    * Runs `git fetch --all --prune` then `git pull --ff-only origin <branch>`.
+    * Runs `git fetch --all`, mirrors if configured, then `git pull --ff-only <remote> <branch>`.
     * Returns `{"ok": true/false, "log": "<combined stdout+stderr>"}`.
 * **Templates & static**
 
@@ -205,7 +231,7 @@ Open your browser to **[http://localhost:9001](http://localhost:9001)**.
 * **Path safety**: Requests are constrained to the configured repo root. The server rejects paths outside the repo.
 * **Clipboard**: Modern browsers may require user interaction/permissions for clipboard access. The app includes a safe fallback.
 * **Network**: The default bind is `0.0.0.0`. Prefer `127.0.0.1` if you don’t need LAN access, or front it with a reverse proxy + auth.
-* **Git update**: The update action assumes a remote named `origin` and will **fast‑forward only** to avoid accidental merge commits. Ensure your `branch` exists on `origin`.
+* **Git update**: Updates fast‑forward only from the configured remote (default `origin`). Ensure your `branch` exists on that remote.
 * **Static caching**: Static files are sent with conditional requests enabled.
 
 ---
@@ -220,9 +246,10 @@ Open your browser to **[http://localhost:9001](http://localhost:9001)**.
 # If omitted, Git Gather uses `git rev-parse --show-toplevel`.
 path = /abs/or/tilde/expanded/path
 
-# The branch Git Gather will fast-forward pull from origin.
-# Defaults to "master" if missing or empty.
+# Branch and remote Git Gather will fast-forward pull from.
+# Defaults: branch="master", remote="origin".
 branch = main
+remote = origin
 
 # Optional nested repo to mirror between remotes after a pull.
 # `path` is relative to the repo root; omit this section to skip mirroring.
@@ -243,7 +270,7 @@ If `path` is set to a non-repo, the server returns an error. If you run Git Gath
   * Either run Git Gather from within a repo, or set `[repo].path` in `config.ini`.
 * **Update fails with remote/branch errors**
 
-  * Confirm `origin` exists and the configured `branch` exists on `origin`. Try `git remote -v` and `git branch -vv`.
+  * Confirm the target remote exists and the configured `branch` exists there. Try `git remote -v` and `git branch -vv`.
 * **Clipboard copy doesn’t work**
 
   * Some browsers restrict clipboard on non‑secure origins. The app falls back to a compatible method; make sure you clicked the **Copy** button directly (user gesture).

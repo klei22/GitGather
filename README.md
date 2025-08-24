@@ -43,7 +43,14 @@ Flask>=3.0
 
 ### 3) Configure (optional)
 
-Create `config.ini` next to `app.py` to pin a repo path/branch:
+If you want Git Gather to manage another repository, clone it beside this app and ignore it:
+
+```bash
+git clone https://github.com/some/project.git example-repo
+echo example-repo/ >> .gitignore
+```
+
+Then create `config.ini` next to `app.py` to pin a repo path/branch:
 
 ```ini
 [repo]
@@ -60,7 +67,7 @@ remote = origin
 [mirror]
 # Optional nested repo to mirror between remotes after updating.
 # `path` is relative to the repo root above.
-path = nanogpt
+path = example-repo
 pull_remote = upstream
 push_remote = origin
 ```
@@ -69,7 +76,7 @@ push_remote = origin
 
 ```ini
 [repo]
-path = nanogpt
+path = example-repo
 branch = master
 remote = origin
 
@@ -83,9 +90,9 @@ Running **Update** now executes:
 
 ```bash
 git fetch --all
-git -C nanogpt pull upstream master:master
-git -C nanogpt push origin master:master
-git -C nanogpt pull --ff-only origin master
+git -C example-repo pull upstream master:master
+git -C example-repo push origin master:master
+git -C example-repo pull --ff-only origin master
 ```
 
 If `path` is omitted, Git Gather will attempt:
@@ -254,7 +261,7 @@ remote = origin
 # Optional nested repo to mirror between remotes after a pull.
 # `path` is relative to the repo root; omit this section to skip mirroring.
 [mirror]
-path = nanogpt
+path = example-repo
 pull_remote = upstream
 push_remote = origin
 ```
